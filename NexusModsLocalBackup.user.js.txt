@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Nexus Mod Local Backup Button (Auto-Sanitize Key)
+// @name         Nexus Mod Local Backup Button (Clean Folders)
 // @namespace    http://tampermonkey.net/
-// @version      2.4
-// @description  Adds a "Backup Mod" button. Fixed "Invalid Key" popup caused by copy-paste formatting artifacts.
+// @version      2.5
+// @description  Adds a "Backup Mod" button. Saves everything into a subfolder named exactly after the mod inside your Downloads folder.
 // @match        https://www.nexusmods.com/*/mods/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_download
@@ -14,18 +14,16 @@
     'use strict';
 
     // --- CONFIGURATION ---
-    // Make sure to put your key inside these quotes!
     const API_KEY = "YOUR_API_KEY_HERE";
 
     // --- SCRIPT CORE ---
 
     function apiRequest(endpoint) {
-        // AUTO-SANITIZE: Strips out spaces, hidden tabs, newlines, and accidental double/single quotes
         const cleanKey = API_KEY.replace(/[\s'"]/g, '');
 
         return new Promise((resolve, reject) => {
             if (cleanKey === "YOUR_NEXUS_MODS_API_KEY_HERE" || cleanKey === "") {
-                reject("The API Key placeholder is still active. Please edit the script and paste your real key.");
+                reject("Please edit the script and paste your real API key.");
                 return;
             }
 
@@ -39,33 +37,30 @@
                 anonymous: true,
                 onload: function(response) {
                     if (response.status === 401) {
-                        reject(`Nexus rejected this key. Verify it matches your Personal API Key page exactly.\n\nSent Key Length: ${cleanKey.length} characters.`);
-                    } else if (response.status === 403) {
-                        reject("403 Forbidden. Your account doesn't have access to this endpoint.");
-                    } else if (response.status === 429) {
-                        reject("Rate limit exceeded. Please wait a minute.");
+                        reject("Nexus rejected this API key.");
                     } else if (response.status !== 200) {
-                        reject(`API Error ${response.status} on ${endpoint}`);
+                        reject(`API Error ${response.status}`);
                     } else {
                         resolve(JSON.parse(response.responseText));
                     }
                 },
                 onerror: function(err) {
-                    reject(`Network Connection Error: ${err}`);
+                    reject(`Network Error: ${err}`);
                 }
             });
         });
     }
 
     function cleanFilename(filename) {
-        return filename.replace(/[\\/*?:"<>|]/g, "").trim();
+        // Strict cleaning to prevent invalid folder/file names in Windows/Mac/Linux
+        return filename.replace(/[\\/*?:"<>|]/g, "").replace(/\s+/g, " ").trim();
     }
 
     function downloadFile(url, relativePath) {
         return new Promise((resolve, reject) => {
             GM_download({
                 url: url,
-                name: relativePath,
+                name: relativePath, // Standard browser behavior puts this relative to your default Downloads folder
                 saveAs: false,
                 onload: () => resolve(),
                 onerror: (err) => {
@@ -78,12 +73,14 @@
 
     async function processModBackup(gameDomain, modId, uiStatusElement) {
         try {
-            uiStatusElement.innerText = "Validating Key...";
+            uiStatusElement.innerText = "Reading Mod Name...";
 
             // 1. Fetch Mod Info
             const modData = await apiRequest(`/games/${gameDomain}/mods/${modId}`);
             const modName = cleanFilename(modData.name || `Mod_${modId}`);
-            const folderPrefix = `${gameDomain}_${modId}_${modName}/`;
+
+            // --- FIX: This creates a folder named EXACTLY the mod name inside your Downloads folder ---
+            const folderPrefix = `${modName}/`;
 
             uiStatusElement.innerText = "Saving Info...";
 
@@ -123,11 +120,13 @@
                 const isOldOrArchived = (modFile.category_id === 4 || modFile.category_id === 6 || catLower.includes('old') || catLower.includes('archive'));
                 if (isOldOrArchived) continue;
 
-                uiStatusElement.innerText = `Getting Links...`;
+                uiStatusElement.innerText = `Downloading Files...`;
 
                 const linksData = await apiRequest(`/games/${gameDomain}/mods/${modId}/files/${modFile.file_id}/download_link`);
                 if (linksData && linksData.length > 0) {
                     const downloadUrl = linksData[0].URI;
+
+                    // Saves files organized neatly by category subfolders inside the main Mod folder
                     const savePath = `${folderPrefix}${cleanFilename(categoryName)}/${modFile.file_name}`;
                     await downloadFile(downloadUrl, savePath);
                 }
