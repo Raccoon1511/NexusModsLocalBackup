@@ -1,12 +1,6 @@
-Here is a `README.md` file you can drop right into your GitHub repository.
-
-*Just a quick heads-up before you copy this: Because your raw link ends in `.txt`, Tampermonkey won't automatically prompt the user to install it when they click the link. I've included instructions on how they can copy-paste it manually. If you want to make it a one-click install for your users in the future, just rename the file in your GitHub repo from `NexusModsLocalBackup.user.js.txt` to `NexusModsLocalBackup.user.js`!*
-
----
-
 # Nexus Mods Local Backup
 
-A Tampermonkey userscript that adds a handy **"Local Backup"** button to Nexus Mods pages. Instead of manually downloading files one by one, this script automatically fetches the mod's description, preview image, and all main files, saving them into a neatly organized subfolder right in your Downloads directory.
+A Tampermonkey userscript that adds a handy **"Local Backup"** button to Nexus Mods pages. Instead of manually downloading files one by one, this script automatically fetches the mod's description, preview image, and all main and optional files, saving them into a neatly organized subfolder right in your Downloads directory.
 
 ## ⚙️ Prerequisites: Install Tampermonkey
 
@@ -17,7 +11,7 @@ To use this script, you need the Tampermonkey extension installed in your browse
 
 ## 🛠️ Configuration (Required)
 
-By default, browser extensions aren't allowed to create subfolders in your Downloads directory. You **must** configure Tampermonkey to allow this, or the script will not work properly.
+By default, browser extensions aren't allowed to create subfolders in your Downloads directory. You **must** configure Tampermonkey to allow this. If you don't configure this, the script will still work, but it will download all files directly to your Downloads folder without creating subfolders.
 
 1. Open your **Tampermonkey Dashboard** (Click the Tampermonkey icon in your browser extension bar and select "Dashboard").
 2. Click on the **Settings** tab.
@@ -28,13 +22,8 @@ By default, browser extensions aren't allowed to create subfolders in your Downl
 
 ## 📥 Installation
 
-1. Click this link to view the script: **[NexusModsLocalBackup.user.js.txt](https://github.com/Raccoon1511/NexusModsLocalBackup/raw/refs/heads/main/NexusModsLocalBackup.user.js.txt)**
-2. Select all the text on the page (`Ctrl+A` or `Cmd+A`) and copy it (`Ctrl+C` or `Cmd+C`).
-3. Open your Tampermonkey Dashboard.
-4. Click the **"+" (Add new script)** tab.
-5. Delete all the default placeholder code in the editor.
-6. Paste (`Ctrl+V` or `Cmd+V`) the code you copied.
-7. Go to **File > Save** (or press `Ctrl+S` / `Cmd+S`).
+1. Click this link to view the script: **[NexusModsLocalBackup.user.js](https://github.com/Raccoon1511/NexusModsLocalBackup/raw/refs/heads/main/NexusModsLocalBackup.user.js)**
+2. Click on install
 
 ## 🔑 Getting Your Nexus Mods API Key
 
@@ -51,4 +40,4 @@ The script needs an API key to communicate with Nexus Mods and fetch the files a
 2. You will now see a purple **Local Backup** button next to the standard mod actions (Endorse, Track, etc.).
 3. Click it.
 4. **On your first use**, a prompt will appear asking for your Nexus Mods API Key. Paste the key you generated in the previous step. *(Tampermonkey will securely save this key, so you only have to do this once).*
-5. Sit back! The script will read the mod info and download the instructions, preview image, and files directly into a new folder named after the mod in your Downloads directory.
+5. The script will read the mod info and download the instructions, preview image, and files directly into a new folder named after the mod in your Downloads directory.
