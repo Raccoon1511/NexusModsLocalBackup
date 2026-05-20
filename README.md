@@ -1,6 +1,9 @@
 # Nexus Mods Local Backup
 
 A Tampermonkey userscript that adds a handy **"Local Backup"** button to Nexus Mods pages. Instead of manually downloading files one by one, this script automatically fetches the mod's description, preview image, and all main and optional files, saving them into a neatly organized subfolder right in your Downloads directory.
+<p align="left">
+  <img src="LocalBackupButtonScreenshot.PNG" alt="Local Backup Button Screenshot" width="49%" />
+</p>
 
 ## ⚙️ Prerequisites: Install Tampermonkey
 
@@ -9,7 +12,7 @@ To use this script, you need the Tampermonkey extension installed in your browse
 1. Download Tampermonkey for your browser: [Tampermonkey.net](https://www.tampermonkey.net/)
 2. Install the extension and make sure it is enabled.
 
-## 🛠️ Configuration (Required)
+## 🛠️ Configuration
 
 By default, browser extensions aren't allowed to create subfolders in your Downloads directory. You **must** configure Tampermonkey to allow this. If you don't configure this, the script will still work, but it will download all files directly to your Downloads folder without creating subfolders.
 
@@ -30,7 +33,7 @@ By default, browser extensions aren't allowed to create subfolders in your Downl
 The script needs an API key to communicate with Nexus Mods and fetch the files automatically.
 
 1. Log into your account on [Nexus Mods](https://www.nexusmods.com/).
-2. Go to your **API Access** page. (You can find this by clicking your profile avatar > Site Preferences > API / Integrations, or by going directly to [next.nexusmods.com/settings/api-keys](https://www.google.com/search?q=https://next.nexusmods.com/settings/api-keys)).
+2. Go to your **API Access** page. (You can find this by clicking your profile avatar > Site Preferences > API / Integrations, or by going directly to [next.nexusmods.com/settings/api-keys](https://www.nexusmods.com/settings/api-keys)).
 3. Scroll down to **Personal API Key**.
 4. Click **Generate** (or copy your existing key).
 
@@ -41,3 +44,6 @@ The script needs an API key to communicate with Nexus Mods and fetch the files a
 3. Click it.
 4. **On your first use**, a prompt will appear asking for your Nexus Mods API Key. Paste the key you generated in the previous step. *(Tampermonkey will securely save this key, so you only have to do this once).*
 5. The script will read the mod info and download the instructions, preview image, and files directly into a new folder named after the mod in your Downloads directory.
+<p align="left">
+  <img src="DownloadFolderScreenshot.PNG" alt="Download Folder Structure" width="49%" />
+</p>
