@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         Nexus Mod Local Backup Button (Clean Folders)
 // @namespace    http://tampermonkey.net/
-// @version      2.5
-// @description  Adds a "Backup Mod" button. Saves everything into a subfolder named exactly after the mod inside your Downloads folder.
+// @version      2.6
+// @description  Adds a "Backup Mod" button. Saves everything into a subfolder named exactly after the mod inside your Downloads folder. Saves API key securely inside Tampermonkey storage on first use.
 // @match        https://www.nexusmods.com/*/mods/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_download
+// @grant        GM_setValue
+// @grant        GM_getValue
 // @connect      api.nexusmods.com
 // @run-at       document-idle
 // ==/UserScript==
@@ -13,19 +15,27 @@
 (function() {
     'use strict';
 
-    // --- CONFIGURATION ---
-    const API_KEY = "YOUR_API_KEY_HERE";
-
     // --- SCRIPT CORE ---
 
     function apiRequest(endpoint) {
-        const cleanKey = API_KEY.replace(/[\s'"]/g, '');
-
         return new Promise((resolve, reject) => {
-            if (cleanKey === "YOUR_NEXUS_MODS_API_KEY_HERE" || cleanKey === "") {
-                reject("Please edit the script and paste your real API key.");
-                return;
+            // Retrieve key from Tampermonkey storage
+            let savedKey = GM_getValue("nexus_api_key", "");
+
+            // If no key is found, prompt the user dynamically
+            if (!savedKey || savedKey.trim() === "") {
+                const userKey = prompt("Please enter your Nexus Mods API Key.\n(This will be saved securely in Tampermonkey and you won't have to enter it again):");
+                
+                if (!userKey) {
+                    reject("Backup cancelled. An API key is required.");
+                    return;
+                }
+                
+                savedKey = userKey.trim();
+                GM_setValue("nexus_api_key", savedKey);
             }
+
+            const cleanKey = savedKey.replace(/[\s'"]/g, '');
 
             GM_xmlhttpRequest({
                 method: "GET",
@@ -37,7 +47,9 @@
                 anonymous: true,
                 onload: function(response) {
                     if (response.status === 401) {
-                        reject("Nexus rejected this API key.");
+                        // Clear invalid key so user can re-enter it next time
+                        GM_setValue("nexus_api_key", "");
+                        reject("Nexus rejected this API key. It has been cleared; please try again and double-check your key.");
                     } else if (response.status !== 200) {
                         reject(`API Error ${response.status}`);
                     } else {
@@ -79,7 +91,7 @@
             const modData = await apiRequest(`/games/${gameDomain}/mods/${modId}`);
             const modName = cleanFilename(modData.name || `Mod_${modId}`);
 
-            // --- FIX: This creates a folder named EXACTLY the mod name inside your Downloads folder ---
+            // --- Creates a folder named EXACTLY the mod name inside your Downloads folder ---
             const folderPrefix = `${modName}/`;
 
             uiStatusElement.innerText = "Saving Info...";
