@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Nexus Mod Local Backup Button (Clean Folders)
+// @name         Nexus Mod Local Backup Button
 // @namespace    http://tampermonkey.net/
 // @version      2.6
 // @description  Adds a "Backup Mod" button. Saves everything into a subfolder named exactly after the mod inside your Downloads folder. Saves API key securely inside Tampermonkey storage on first use.
