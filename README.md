@@ -45,5 +45,13 @@ The script needs an API key to communicate with Nexus Mods and fetch the files a
 4. **On your first use**, a prompt will appear asking for your Nexus Mods API Key. Paste the key you generated in the previous step. *(Tampermonkey will securely save this key, so you only have to do this once).*
 5. The script will read the mod info and download the instructions, preview image, and files directly into a new folder named after the mod in your Downloads directory.
 <p align="left">
-  <img src="DownloadFolderScreenshot.PNG" alt="Download Folder Structure" width="49%" />
+ <img src="DownloadFolderScreenshot.PNG" alt="Download Folder Structure" width="49%" />
 </p>
+
+## 🌐 Browser Compatibility
+
+Tested on **Edge**, **Firefox**, and **Chrome**.
+
+For **Chrome**, an additional steps is required:
+1. Go to `chrome://extensions`
+2. Click on **Details** for Tampermonkey and **Allow userscripts**
