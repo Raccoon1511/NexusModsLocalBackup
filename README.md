@@ -21,7 +21,8 @@ By default, browser extensions aren't allowed to create subfolders in your Downl
 3. At the very top of the page, change **Config mode** to **Advanced**.
 4. Scroll down until you find the **Downloads** section.
 5. Change **Download Mode** to **Browser API**.
-6. *Note: Your browser may pop up a notification asking for permission to allow Tampermonkey to manage your downloads. You must click "Allow" or "Yes".*
+6. Add **7z** to allowed file-endings: /\.(zip|tgz|tar|bin|**7z**)$/
+7. *Note: Your browser may pop up a notification asking for permission to allow Tampermonkey to manage your downloads. You must click "Allow" or "Yes".*
 
 ## 📥 Installation
 
