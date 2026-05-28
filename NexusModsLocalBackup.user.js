@@ -2,8 +2,8 @@
 // @name         Nexus Mod Local Backup Button
 // @author       Raccoon1511
 // @namespace    http://tampermonkey.net/
-// @version      2.8
-// @description  Adds a "Backup Mod" button to mod pages, mod cards, and search results. Saves everything into a subfolder named exactly after the mod inside your Downloads folder.
+// @version      2.10
+// @description  Adds a "Backup Mod" button to mod pages, mod cards, search results, and download history pages. Saves everything into a subfolder named exactly after the mod inside your Downloads folder.
 // @match        https://www.nexusmods.com/*
 // @match        https://next.nexusmods.com/*
 // @grant        GM_xmlhttpRequest
@@ -82,8 +82,10 @@
     }
 
     async function processModBackup(gameDomain, modId, uiStatusElement) {
+        // Track the original text state to reset cleanly afterwards
+        const originalText = uiStatusElement.innerText || "Local Backup";
         try {
-            uiStatusElement.innerText = "Reading Mod Name...";
+            uiStatusElement.innerText = "Reading Mod...";
 
             const modData = await apiRequest(`/games/${gameDomain}/mods/${modId}`);
             const modName = cleanFilename(modData.name || `Mod_${modId}`);
@@ -113,7 +115,8 @@
             const filesData = await apiRequest(`/games/${gameDomain}/mods/${modId}/files`);
 
             if (!filesData || !filesData.files || filesData.files.length === 0) {
-                uiStatusElement.innerText = "No Files Found!";
+                uiStatusElement.innerText = "No Files!";
+                setTimeout(() => { uiStatusElement.innerText = originalText; }, 3000);
                 return;
             }
 
@@ -124,7 +127,7 @@
                 const isOldOrArchived = (modFile.category_id === 4 || modFile.category_id === 6 || catLower.includes('old') || catLower.includes('archive'));
                 if (isOldOrArchived) continue;
 
-                uiStatusElement.innerText = `Downloading Files...`;
+                uiStatusElement.innerText = `Downloading...`;
 
                 const linksData = await apiRequest(`/games/${gameDomain}/mods/${modId}/files/${modFile.file_id}/download_link`);
                 if (linksData && linksData.length > 0) {
@@ -135,12 +138,12 @@
             }
 
             uiStatusElement.innerText = "Success!";
-            setTimeout(() => { uiStatusElement.innerText = "Local Backup"; }, 3000);
+            setTimeout(() => { uiStatusElement.innerText = originalText; }, 3000);
 
         } catch (error) {
             console.error("[Backup Script] Error Details:", error);
             uiStatusElement.innerText = "Failed";
-            setTimeout(() => { uiStatusElement.innerText = "Local Backup"; }, 3000);
+            setTimeout(() => { uiStatusElement.innerText = originalText; }, 3000);
             alert(`Backup failed:\n${error}`);
         }
     }
@@ -182,7 +185,6 @@
 
     // --- UI INJECTION FOR MOD CARDS (SEARCH / LISTINGS) ---
     function injectCardButtons() {
-        // Targets classic mod tiles, newer Next.js grids, and global search result grids
         const cards = document.querySelectorAll(`
             .mod-tile:not(.has-backup-btn),
             .mods-grid > div:not(.animate-pulse):not(.has-backup-btn),
@@ -191,7 +193,6 @@
         `);
 
         cards.forEach(card => {
-            // Find a link that points to a specific mod inside the card
             const link = card.querySelector('a[href*="/mods/"]');
             if (!link) return;
 
@@ -200,12 +201,10 @@
                 const parts = urlObj.pathname.split('/').filter(p => p);
                 const modsIdx = parts.indexOf('mods');
 
-                // Extract domain and ID cleanly from the path structure
                 if (modsIdx > 0 && parts.length > modsIdx + 1) {
                     const gameDomain = parts[modsIdx - 1];
                     const modId = parts[modsIdx + 1].split('?')[0];
 
-                    // Ensure the ID is numeric (filters out links to generic /mods/ pages)
                     if (!/^\d+$/.test(modId)) return;
 
                     card.classList.add('has-backup-btn');
@@ -214,7 +213,7 @@
                     btnContainer.style.padding = '8px';
                     btnContainer.style.display = 'flex';
                     btnContainer.style.justifyContent = 'center';
-                    btnContainer.style.marginTop = 'auto'; // Ensures the button sticks to the bottom of the card
+                    btnContainer.style.marginTop = 'auto';
 
                     const btn = document.createElement('button');
                     btn.innerText = 'Local Backup';
@@ -233,8 +232,69 @@
                     card.appendChild(btnContainer);
                 }
             } catch (e) {
-                // Failsafe for malformed URLs
             }
+        });
+    }
+
+    // --- UI INJECTION FOR DOWNLOAD HISTORY TABLE ---
+    function injectHistoryButtons() {
+        const rows = document.querySelectorAll('.datatable tbody tr:not(.has-backup-btn)');
+        rows.forEach(row => {
+            let gameDomain = '';
+            let modId = '';
+
+            const modLink = row.querySelector('a[href*="/mods/"]');
+            if (modLink) {
+                try {
+                    const urlObj = new URL(modLink.href, window.location.origin);
+                    const parts = urlObj.pathname.split('/').filter(p => p);
+                    const modsIdx = parts.indexOf('mods');
+                    if (modsIdx > 0 && parts.length > modsIdx + 1) {
+                        gameDomain = parts[modsIdx - 1];
+                        modId = parts[modsIdx + 1].split('?')[0];
+                    }
+                } catch (e) {}
+            }
+
+            const actionLink = row.querySelector('a[href*="ModActionLogPopUp"]');
+            if (actionLink && (!modId || !gameDomain)) {
+                try {
+                    const urlObj = new URL(actionLink.href, window.location.origin);
+                    const params = new URLSearchParams(urlObj.search);
+                    if (params.has('mod_id')) {
+                        modId = params.get('mod_id');
+                    }
+                    if (!gameDomain) {
+                        gameDomain = window.notifications_game_domain_name || window.location.pathname.split('/').filter(p => p)[0];
+                    }
+                } catch (e) {}
+            }
+
+            if (!modId || !/^\d+$/.test(modId) || !gameDomain) return;
+
+            // NEW TARGET: The "Last DL" column
+            const targetCell = row.querySelector('.table-download');
+            if (!targetCell) return;
+
+            row.classList.add('has-backup-btn');
+
+            // Inject a line break and the button so it sits neatly under the date
+            const br = document.createElement('br');
+
+            const btn = document.createElement('a');
+            btn.innerText = 'Local Backup';
+            btn.style.cssText = 'color: #7289da; cursor: pointer; font-weight: 600; font-size: 12px; display: inline-block; margin-top: 4px; transition: opacity 0.2s;';
+            btn.onmouseover = () => btn.style.opacity = '0.8';
+            btn.onmouseout = () => btn.style.opacity = '1';
+
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                processModBackup(gameDomain, modId, btn);
+            });
+
+            targetCell.appendChild(br);
+            targetCell.appendChild(btn);
         });
     }
 
@@ -242,11 +302,13 @@
     const observer = new MutationObserver(() => {
         injectButton();
         injectCardButtons();
+        injectHistoryButtons();
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
     // Initial Run
     injectButton();
     injectCardButtons();
+    injectHistoryButtons();
 
 })();
