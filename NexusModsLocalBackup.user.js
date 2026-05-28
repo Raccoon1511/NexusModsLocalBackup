@@ -2,9 +2,10 @@
 // @name         Nexus Mod Local Backup Button
 // @author       Raccoon1511
 // @namespace    http://tampermonkey.net/
-// @version      2.6
-// @description  Adds a "Backup Mod" button. Saves everything into a subfolder named exactly after the mod inside your Downloads folder. Saves API key securely inside Tampermonkey storage on first use.
-// @match        https://www.nexusmods.com/*/mods/*
+// @version      2.8
+// @description  Adds a "Backup Mod" button to mod pages, mod cards, and search results. Saves everything into a subfolder named exactly after the mod inside your Downloads folder.
+// @match        https://www.nexusmods.com/*
+// @match        https://next.nexusmods.com/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_download
 // @grant        GM_setValue
@@ -20,18 +21,16 @@
 
     function apiRequest(endpoint) {
         return new Promise((resolve, reject) => {
-            // Retrieve key from Tampermonkey storage
             let savedKey = GM_getValue("nexus_api_key", "");
 
-            // If no key is found, prompt the user dynamically
             if (!savedKey || savedKey.trim() === "") {
                 const userKey = prompt("Please enter your Nexus Mods API Key.\n(This will be saved securely in Tampermonkey and you won't have to enter it again):");
-                
+
                 if (!userKey) {
                     reject("Backup cancelled. An API key is required.");
                     return;
                 }
-                
+
                 savedKey = userKey.trim();
                 GM_setValue("nexus_api_key", savedKey);
             }
@@ -48,7 +47,6 @@
                 anonymous: true,
                 onload: function(response) {
                     if (response.status === 401) {
-                        // Clear invalid key so user can re-enter it next time
                         GM_setValue("nexus_api_key", "");
                         reject("Nexus rejected this API key. It has been cleared; please try again and double-check your key.");
                     } else if (response.status !== 200) {
@@ -65,7 +63,6 @@
     }
 
     function cleanFilename(filename) {
-        // Strict cleaning to prevent invalid folder/file names in Windows/Mac/Linux
         return filename.replace(/[\\/*?:"<>|]/g, "").replace(/\s+/g, " ").trim();
     }
 
@@ -73,7 +70,7 @@
         return new Promise((resolve, reject) => {
             GM_download({
                 url: url,
-                name: relativePath, // Standard browser behavior puts this relative to your default Downloads folder
+                name: relativePath,
                 saveAs: false,
                 onload: () => resolve(),
                 onerror: (err) => {
@@ -88,16 +85,12 @@
         try {
             uiStatusElement.innerText = "Reading Mod Name...";
 
-            // 1. Fetch Mod Info
             const modData = await apiRequest(`/games/${gameDomain}/mods/${modId}`);
             const modName = cleanFilename(modData.name || `Mod_${modId}`);
-
-            // --- Creates a folder named EXACTLY the mod name inside your Downloads folder ---
             const folderPrefix = `${modName}/`;
 
             uiStatusElement.innerText = "Saving Info...";
 
-            // 2. Save Description
             const cleanDescription = (modData.description || "No description available.")
                 .replace(/<[^>]+>/g, '')
                 .replace(/&nbsp;/g, ' ')
@@ -110,14 +103,12 @@
             const blobUrl = URL.createObjectURL(blob);
             await downloadFile(blobUrl, `${folderPrefix}instructions.txt`);
 
-            // 3. Save Primary Preview Image
             if (modData.picture_url) {
                 let ext = modData.picture_url.split('.').pop().split('?')[0];
                 if (ext.length > 4 || !/^[a-zA-Z0-9]+$/.test(ext)) ext = "jpg";
                 await downloadFile(modData.picture_url, `${folderPrefix}preview_image.${ext}`);
             }
 
-            // 4. Fetch Mod Files
             uiStatusElement.innerText = "Fetching Files...";
             const filesData = await apiRequest(`/games/${gameDomain}/mods/${modId}/files`);
 
@@ -138,8 +129,6 @@
                 const linksData = await apiRequest(`/games/${gameDomain}/mods/${modId}/files/${modFile.file_id}/download_link`);
                 if (linksData && linksData.length > 0) {
                     const downloadUrl = linksData[0].URI;
-
-                    // Saves files organized neatly by category subfolders inside the main Mod folder
                     const savePath = `${folderPrefix}${cleanFilename(categoryName)}/${modFile.file_name}`;
                     await downloadFile(downloadUrl, savePath);
                 }
@@ -156,6 +145,7 @@
         }
     }
 
+    // --- UI INJECTION FOR DETAIL PAGE ---
     function injectButton() {
         const actionList = document.querySelector('.action-list') ||
                            document.querySelector('.mod-actions') ||
@@ -165,8 +155,11 @@
         if (!actionList || document.getElementById('local-backup-btn')) return;
 
         const urlParts = window.location.pathname.split('/');
-        const gameDomain = urlParts[1];
-        const modId = urlParts[3];
+        if (!urlParts.includes('mods') || urlParts[urlParts.length - 1] === 'mods') return;
+
+        const modsIdx = urlParts.indexOf('mods');
+        const gameDomain = urlParts[modsIdx - 1];
+        const modId = urlParts[modsIdx + 1];
 
         if (!gameDomain || !modId || isNaN(modId)) return;
 
@@ -187,8 +180,73 @@
         actionList.appendChild(backupBtn);
     }
 
-    const observer = new MutationObserver(() => { injectButton(); });
+    // --- UI INJECTION FOR MOD CARDS (SEARCH / LISTINGS) ---
+    function injectCardButtons() {
+        // Targets classic mod tiles, newer Next.js grids, and global search result grids
+        const cards = document.querySelectorAll(`
+            .mod-tile:not(.has-backup-btn),
+            .mods-grid > div:not(.animate-pulse):not(.has-backup-btn),
+            #mainContent section[aria-label="Mods"] .grid > div:not(.animate-pulse):not(.has-backup-btn),
+            #mainContent .grid > div.flex.flex-col:not(.animate-pulse):not(.has-backup-btn)
+        `);
+
+        cards.forEach(card => {
+            // Find a link that points to a specific mod inside the card
+            const link = card.querySelector('a[href*="/mods/"]');
+            if (!link) return;
+
+            try {
+                const urlObj = new URL(link.href, window.location.origin);
+                const parts = urlObj.pathname.split('/').filter(p => p);
+                const modsIdx = parts.indexOf('mods');
+
+                // Extract domain and ID cleanly from the path structure
+                if (modsIdx > 0 && parts.length > modsIdx + 1) {
+                    const gameDomain = parts[modsIdx - 1];
+                    const modId = parts[modsIdx + 1].split('?')[0];
+
+                    // Ensure the ID is numeric (filters out links to generic /mods/ pages)
+                    if (!/^\d+$/.test(modId)) return;
+
+                    card.classList.add('has-backup-btn');
+
+                    const btnContainer = document.createElement('div');
+                    btnContainer.style.padding = '8px';
+                    btnContainer.style.display = 'flex';
+                    btnContainer.style.justifyContent = 'center';
+                    btnContainer.style.marginTop = 'auto'; // Ensures the button sticks to the bottom of the card
+
+                    const btn = document.createElement('button');
+                    btn.innerText = 'Local Backup';
+                    btn.style.cssText = 'background-color: #7289da; color: white; cursor: pointer; padding: 6px 12px; border: none; border-radius: 4px; font-weight: 600; font-size: 13px; width: 100%; transition: opacity 0.2s;';
+
+                    btn.onmouseover = () => btn.style.opacity = '0.8';
+                    btn.onmouseout = () => btn.style.opacity = '1';
+
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        processModBackup(gameDomain, modId, btn);
+                    });
+
+                    btnContainer.appendChild(btn);
+                    card.appendChild(btnContainer);
+                }
+            } catch (e) {
+                // Failsafe for malformed URLs
+            }
+        });
+    }
+
+    // --- OBSERVER ---
+    const observer = new MutationObserver(() => {
+        injectButton();
+        injectCardButtons();
+    });
     observer.observe(document.body, { childList: true, subtree: true });
+
+    // Initial Run
     injectButton();
+    injectCardButtons();
 
 })();
