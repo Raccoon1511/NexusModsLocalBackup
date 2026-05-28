@@ -1,8 +1,9 @@
 # Nexus Mods Local Backup
 
-A Tampermonkey userscript that adds a handy **"Local Backup"** button to Nexus Mods pages. Instead of manually downloading files one by one, this script automatically fetches the mod's description, preview image, and all main and optional files, saving them into a neatly organized subfolder right in your Downloads directory.
+A Tampermonkey userscript that adds a handy **"Local Backup"** button to Nexus Mods pages. Instead of manually downloading files one by one, this script automatically fetches the mod's description, preview image, and all main and optional files, saving them into a neatly organized subfolder right in your Downloads directory. The **"Local Backup"** button will be added to mod pages, mod cards, mod author profiles and search results.
 <p align="left">
-  <img src="LocalBackupButtonScreenshot.PNG" alt="Local Backup Button Screenshot" width="49%" />
+  <img src="LocalBackupButtonModCardsScreenshot.PNG" alt="Search Result Card Backup Button Screenshot" width="35%" valign="top"/>
+  <img src="LocalBackupButtonScreenshot.PNG" alt="Local Backup Button Screenshot" width="49%" valign="top"/>
 </p>
 
 ## ⚙️ Prerequisites: Install Tampermonkey
